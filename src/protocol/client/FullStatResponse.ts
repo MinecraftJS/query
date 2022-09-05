@@ -48,8 +48,6 @@ export class FullStatResponsePacket extends QueryPacket<FullStatResponse> {
       keyPair[key] = value;
     }
 
-    console.log(keyPair);
-
     this.buf.readBytes(10);
 
     const players: string[] = [];

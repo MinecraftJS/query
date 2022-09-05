@@ -1,11 +1,13 @@
 import { createSocket, Socket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
 import TypedEmitter from 'typed-emitter';
-import { packets } from './protocol';
-import { QueryPacketReader } from './protocol/PacketReader';
-import { QueryPacketWriter } from './protocol/PacketWriter';
+import { packets, QueryPacketReader, QueryPacketWriter } from './protocol';
 import { generateSessionId } from './utils/sessionId';
 
+/**
+ * `QueryClient` class
+ * @see https://wiki.vg/Query
+ */
 export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryClientEvents>) {
   /** Host this client is linked to */
   public readonly host: string;
@@ -17,14 +19,35 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
   /** Whether or not this `QueryClient` is currently connected */
   public connected: boolean;
 
+  /** Options applied to this `QueryClient` */
   private options: QueryClientOptions;
   /** UDP Socket */
   private socket: Socket;
+  /** `QueryPacketReader` instance used to read received packets */
   private packetReader: QueryPacketReader;
+  /** `QueryPacketWriter` instance used to write packets */
   private packetWriter: QueryPacketWriter;
   /** Current challenge token used to send stat requests */
   private challengeToken: number;
 
+  /**
+   * Instanciate a new `QueryClient` instance.
+   *
+   * The client is not automatically connected to the target.
+   * Use the `QueryClient#connect` or `QueryClient#connectAsync`
+   * to connect
+   * @example
+   * ```javascript
+   * const client = new QueryClient('127.0.0.1');
+   * await client.connectAsync();
+   *
+   * const stats = await client.getFullStatAsync();
+   * // or run other commands
+   * ```
+   * @param host Host to connect to
+   * @param port Port to connect on, defaults to 25565
+   * @param options Options to pass to this instance
+   */
   public constructor(host: string, port = 25565, options: QueryClientOptions) {
     super();
     this.options = options ?? {};
@@ -54,12 +77,33 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
     });
   }
 
+  /**
+   * Connect to the target server.
+   * You must listen for the `connect`
+   * even in order to make sure the client
+   * is correctly connected.
+   * @returns This instance
+   */
   public connect(): QueryClient {
     this.socket.connect(this.port, this.host);
-    this.emit('connect');
     return this;
   }
 
+  /**
+   * Disconnect the socket.
+   */
+  public disconnect(): void {
+    this.socket.disconnect();
+    this.connected = false;
+    this.emit('disconnect');
+  }
+
+  /**
+   * Connect to the target server.
+   * The promise will resolve as
+   * soon as the client is connected.
+   * @returns This instance as a promise
+   */
   public connectAsync(): Promise<QueryClient> {
     return new Promise((resolve, reject) => {
       this.socket.once('connect', async () => {
@@ -71,6 +115,11 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
     });
   }
 
+  /**
+   * Get basic statistics about the server.
+   * Listen for the `raw_message` to get the
+   * response.
+   */
   public getBasicStat(): void {
     const packet = this.packetWriter.write('BasicStatRequestPacket', {
       challengeToken: this.challengeToken,
@@ -78,6 +127,12 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
     this.write(packet);
   }
 
+  /**
+   * Get basic statistics about the server.
+   * The promise will resolve with the response
+   * content, already parsed.
+   * @returns The parsed response
+   */
   public getBasicStatAsync(): Promise<
     InstanceType<typeof packets['BasicStatResponsePacket']>['data']
   > {
@@ -90,6 +145,11 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
     });
   }
 
+  /**
+   * Get full statistics about the server.
+   * Listen for the `raw_message` to get the
+   * response.
+   */
   public getFullStat(): void {
     const packet = this.packetWriter.write('FullStatRequestPacket', {
       challengeToken: this.challengeToken,
@@ -97,6 +157,12 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
     this.write(packet);
   }
 
+  /**
+   * Get full statistics about the server.
+   * The promise will resolve with the response
+   * content, already parsed.
+   * @returns The parsed response
+   */
   public getFullStatAsync(): Promise<
     InstanceType<typeof packets['FullStatResponsePacket']>['data']
   > {
@@ -109,6 +175,11 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
     });
   }
 
+  /**
+   * Execute the handshake sequence.
+   * The promise is resolved when the
+   * sequence is completed.
+   */
   private handshake(): Promise<void> {
     return new Promise((resolve) => {
       this.packetReader.once('QueryHandshakeResponsePacket', (packet) => {
@@ -126,7 +197,12 @@ export class QueryClient extends (EventEmitter as new () => TypedEmitter<QueryCl
   }
 }
 
+/** Options you can pass into a `QueryClient` */
 export interface QueryClientOptions {
+  /**
+   * Override the session id. By default
+   * the session id is randomly generated.
+   */
   sessionId?: number;
 }
 

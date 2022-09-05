@@ -1,20 +1,20 @@
 import { BufWrapper } from '@minecraft-js/bufwrapper';
 import { EventEmitter } from 'node:events';
 import TypedEmitter from 'typed-emitter';
-import { packets } from '.';
+import {
+  FullStatPadding,
+  Magic,
+  packets,
+  QueryPacket,
+  QueryPacketLength,
+  QueryPacketType,
+} from '.';
 import * as BufWrapperPlugin from './BufWrapperPlugin';
 import {
   BasicStatResponsePacket,
   FullStatResponsePacket,
   QueryHandshakeResponsePacket,
 } from './client';
-import {
-  FullStatPadding,
-  Magic,
-  QueryPacketLength,
-  QueryPacketType,
-} from './constants';
-import { QueryPacket } from './Packet';
 import {
   BasicStatRequestPacket,
   FullStatRequestPacket,
